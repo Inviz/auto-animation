@@ -1,0 +1,33 @@
+<body>
+
+<script src="transition.js"></script>
+<script>
+
+
+const div = document.createElement('div');
+div.style.cssText = 'width: 100px; height: 100px; position: absolute; background: red;'
+document.body.appendChild(div)
+const animation = new Animation({
+  value: 0,
+  target: 200,
+  friction: 12,
+  tension: 42,
+  mass: 1,
+  precision: .01,
+  threshold: .1,
+  setValue(left) {
+    div.style.transform = 'translateX(' + left + 'px)';
+  }
+})
+
+const next = () => {
+  requestAnimationFrame((now) => {
+  	console.log(now, animation.value, animation.velocity)
+    if (!animation.update(now)) {
+    	next()
+    }
+
+  });
+}
+next()
+</script>

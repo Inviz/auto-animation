@@ -1,0 +1,189 @@
+<body  data-appearance-cascade="100">
+
+<style>
+ * {
+ 	box-sizing: border-box;
+ }
+ .morphing {
+ 	outline: 2px dashed blue;
+ }
+ .el {
+ 	background: green;
+ 	overflow: hidden;
+ }
+ .test {
+ 	margin: 20px;
+ 	padding: 20px;
+ 	background: yellow;
+ }
+ #container {
+ 	min-height: 600px;
+ 	padding: 50px;
+ 	background: lightblue;
+ }
+
+ #root > * {
+ 	margin: 10px;
+ }/*
+ body > * {
+ 	margin: 10px;
+ }*/
+</style>
+
+<script src="transition.js"></script>
+<script src="snapshot.js"></script>
+
+<div class="el" id="unmoved">
+	<div class="test">
+		Unmoved
+	</div>
+</div>
+<div id="container">
+	<div id="root">
+		<div class="el" style="height: 100px;">
+			<div class="test">
+				Static
+			</div>
+		</div>
+		<div class="el" style="display: none" id="hidden">
+			<div class="test">
+				Appears<br>
+				<em>From display: none</em>
+			</div>
+		</div>
+		<div class="el">
+			<div class="test">
+				Grows
+			</div>
+		</div>
+		<div id="div">
+			
+			<div id="child"></div>
+			<div id="child2"></div>
+
+		</div>
+		<div class="el" style="margin: auto">
+			<div class="test"> 
+				Pushed<br />
+				<em>To the right</em><br />
+				Centered within free space
+			</div>
+		</div>
+		<div class="el" id="visible">
+			<div class="test">
+				Hides<br>
+				<em>To display: none</em>
+			</div>
+		</div>
+		<div class="el" id="removed">
+			<div class="test">
+				Removes<br>
+			</div>
+		</div>
+	</div>
+	<div class="el">
+		<div class="test" id="test2">
+			Pushed
+		</div>
+	</div>
+</div>
+<div class="el">
+	
+	<div class="test" id="test2">
+		Static
+	</div>
+</div>
+
+<script>
+
+root.style.background = 'orange';
+root.style.padding = '20px';
+
+root.style.display = 'flex';
+
+div.style.cssText = 'width: 100px; background: red; display: flex'
+	div.style.marginLeft = '100px';
+	div.style.marginTop = '200px';
+
+child.style.width = '35%';
+child.style.height = '60px';
+child.style.background = 'green';
+
+
+child2.style.width = '35%';
+child2.style.height = '40px';
+child2.style.background = 'blue';
+
+var snapshot = new Snapshot(document.body);
+
+	div.style.willChange = 'transform'
+
+snapshot = snapshot.mutate(() => {
+	div.style.width = '300px';
+	child.style.marginTop = '20px';
+	child.style.marginLeft = '20px';
+	child.style.width = '75%';
+	child.style.height = '100px';
+
+	child2.style.order = -1;
+	child2.style.margin = '50px'
+
+	setTimeout(() => {
+		snapshot = snapshot.mutate(() => {
+			child2.style.order = 2;
+		})
+	}, 300)
+
+	setTimeout(() => {
+
+		snapshot = snapshot.mutate(() => {
+			hidden.style.display = 'block';
+		})
+	}, 400)
+
+	setTimeout(() => {
+		snapshot = snapshot.mutate(() => {
+			visible.style.display = 'none';
+		})
+	}, 500)
+
+	setTimeout(() => {
+		snapshot = snapshot.mutate(() => {
+			root.style.height = '500px';
+		})
+	}, 600)
+
+	setTimeout(() => {
+		snapshot = snapshot.mutate(() => {
+			const inserted = hidden.cloneNode(true);
+			inserted.id = 'inserted';
+			inserted.style.cssText = '';
+			inserted.firstElementChild.innerHTML = inserted.firstElementChild.innerHTML = 'Inserted'
+			hidden.parentNode.insertBefore(inserted, hidden.nextSibling)
+		})
+	}, 700)
+
+	setTimeout(() => {
+		snapshot = snapshot.mutate(() => {
+			removed.parentNode.removeChild(removed)
+		})
+	}, 800)
+
+	setTimeout(() => {
+
+		snapshot = snapshot.mutate(() => {
+			var anchor = unmoved;
+			for (var i = 0; i < 5; i++ ) {
+				const inserted = anchor.cloneNode(true);
+				inserted.id = '';
+				inserted.style.cssText = '';
+				inserted.setAttribute('data-cascade-group', 'top-level-group')
+				inserted.firstElementChild.innerHTML = inserted.firstElementChild.innerHTML = 'Inserted at once <br /><em>Cascades by 200 ms</em>'
+				anchor.parentNode.insertBefore(inserted, anchor.nextSibling)
+				anchor = inserted;
+			}
+		})
+	}, 1500)
+})
+
+</script>
