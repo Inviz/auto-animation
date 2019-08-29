@@ -22,6 +22,8 @@ Snapshot.prototype.snapshot = function(element, parentSnapshot) {
 		fontSize: parseFloat(styles.fontSize),
 		opacity: parseFloat(styles.opacity),
 		display: styles.display,
+		translateX: 0,
+		translateY: 0,
 		hidden: parentSnapshot.hidden || styles.visibility === 'hidden' || (element.offsetWidth === 0 && element.offsetHeight === 0),
 		cssText: element.style.cssText,
 		cascadeGroup: element.getAttribute('data-cascade-group'),
@@ -30,37 +32,71 @@ Snapshot.prototype.snapshot = function(element, parentSnapshot) {
 	}
 }
 
-Snapshot.prototype.normalize = function (element, snapshot, parentSnapshot) {
+Snapshot.prototype.chainCascade = function(from, to, styles, group, action, time) {
+	var list = this.groups[group];
+	if (!list) {
+		list = this.groups[group] = [];
+	}
+	for (var i = 0; i < list.length; i++) {
+		if (list[i].key === from.key) {
+			if (action === list[i].action) {
+				return;
+			}
+			list.splice(i, 1);
+			break;
+		}
+	}
+	const fromStyles = {};
+	const toStyles = {};
+	for (var property in to) {
+		if (from[property] !== to[property]) {
+			fromStyles[property] = from[property];
+			toStyles[property] = to[property];
+		}
+	}
+	list.push({
+		action: action,
+		key: from.key, 
+		to: toStyles,
+		from: fromStyles,
+		interval: 200,
+		start: list.length ? list[list.length - 1].start + 200 : time
+	})
+} 
+
+Snapshot.prototype.normalize = function (element, snapshot, parentSnapshot, time) {
 	let from = snapshot.get(element);
 	let to = this.get(element);
+	this.groups = snapshot.groups 
+
+	if (element.id === 'el1')
+		debugger
 
 	if (!to && !from) return;
 
-	if (to.cascadeGroup) {
-		if (!this.groups[to.cascadeGroup])
-			this.groups[to.cascadeGroup] = [];
-		if (this.groups[to.cascadeGroup].cascadeIndex === undefined)
-			this.groups[to.cascadeGroup].cascadeIndex = this.groups[to.cascadeGroup].length;
-		this.groups[to.cascadeGroup].push(to);
-	}
+
+	let appearance;
+	let disappearance
 
 	if (from && !from.hidden && (!to || to.hidden)) {
+		disappearance = this.getDisappearanceStyles(to, from);
 		to = {
 			...from,
 			cssText: to.cssText,
-			...this.getDisappearanceStyles(to, from)
-		}
-		if (to.cascadeGroup) {
-
+			...disappearance
 		}
 		this.set(element, to)
 	}
 
 	if ((!from || from.hidden) && !to.hidden) {
+		appearance = this.getAppearanceStyles(to, from);
 		from = {
 			...to,
 			hidden: true,
-			...this.getAppearanceStyles(to, from)
+			...appearance
+		}
+		if (to.cascadeGroup) {
+			this.chainCascade(from, to, appearance, to.cascadeGroup, 'appearance', time);
 		}
 		snapshot.set(element, from)
 	}
@@ -71,6 +107,9 @@ Snapshot.prototype.normalize = function (element, snapshot, parentSnapshot) {
 	
 	// inherit ongoing transitions
 	to.transitions = from.transitions || {};
+	to.chain = from.chain || {};
+	to.overrides = from.overrides;
+	to.restored = from.restored;
 	to.parentSnapshot = parentSnapshot;
 	to.diffLeft = !from ? 0 : to.left - from.left;
 	to.diffTop = !from ? 0 : to.top - from.top;
@@ -84,7 +123,7 @@ Snapshot.prototype.normalize = function (element, snapshot, parentSnapshot) {
 	to.repositionedChildrenCount = 0;
 	if (element.children) {
 		for (var i = 0; i < element.children.length; i++) {
-			const childMeasurement = this.normalize(element.children[i], snapshot, to);
+			const childMeasurement = this.normalize(element.children[i], snapshot, to, time);
 			if (childMeasurement.repositioned) {
 				to.repositionedChildrenCount++;
 			}
@@ -103,7 +142,7 @@ Snapshot.prototype.normalize = function (element, snapshot, parentSnapshot) {
 		}
 	}*/
 
-	to.repositioned = from.repositioned || (from && from.hidden !== to.hidden) || diffSize > 3 || diffDistance > 3// || from.fontSize !== to.fontSize || from.lineHeight !== to.lineHeight;
+	to.repositioned = from.repositioned || appearance || disappearance || diffSize > 3 || diffDistance > 3// || from.fontSize !== to.fontSize || from.lineHeight !== to.lineHeight;
 	
 	return to;
 }
@@ -112,6 +151,9 @@ Snapshot.prototype.reset = function(element) {
 	this.forEach((measurement) => {
 		measurement.element.style.cssText = measurement.cssText;
 		measurement.element.classList.remove('morphing')
+		if (measurement.restored) {
+			measurement.element.parentNode.removeChild(measurement.element);
+		}
 	});
 }
 
@@ -122,6 +164,7 @@ Snapshot.prototype.measure = function(element, parent) {
 	var measurements = this.snapshot(element, parent);
 	measurements.transitions = {};
 	measurements.element = element;
+	measurements.key = this.getKey(element);
 	this.set(element, measurements);
 	for (var i = 0; i < element.children.length; i++)
 		this.measure(element.children[i], measurements);
@@ -145,11 +188,34 @@ Snapshot.prototype.forEach = function(callback) {
 
 Snapshot.prototype.morph = function(snapshot, time) {
 	snapshot.transitionCount = 0;
+	var cascadeCount = 0;
+	for (var cascadeGroup in snapshot.groups) {
+		var cascadeList = snapshot.groups[cascadeGroup];
+		for (var i = 0; i < cascadeList.length; i++) {
+			if (cascadeList[i].start <= time) {
+				const to = snapshot.get(cascadeList[i].key);
+				to.repositioned = true;
+				to.overrides = cascadeList[i].to;
+			} else {
+				const to = snapshot.get(cascadeList[i].key)
+				to.overrides = cascadeList[i].from;
+				cascadeCount++;
+			}
+			if (cascadeList[i].start + cascadeList[i].interval <= time) {
+				cascadeList.splice(i--, 1);
+			}
+		}
+	}
 	snapshot.forEach((to, key) => {
 		const from = this.measurements.get(key);
 		if (to.repositioned) {
+			if (to.overrides) {
+				Object.assign(to, to.overrides)
+			}
 			const currentLeft    = snapshot.transition(to.element, 'left', time, from, to)
+			const currentX       = snapshot.transition(to.element, 'translateX', time, from, to)
 			const currentTop     = snapshot.transition(to.element, 'top', time, from, to)
+			const currentY       = snapshot.transition(to.element, 'translateY', time, from, to)
 			const currentWidth   = snapshot.transition(to.element, 'width', time, from, to)
 			const currentHeight  = snapshot.transition(to.element, 'height', time, from, to)
 			const parent         = to.parentSnapshot;
@@ -158,12 +224,12 @@ Snapshot.prototype.morph = function(snapshot, time) {
 			const parentLeft = to.left - parent.left + (staticParent ? parent.offsetLeft : 0);
 			const offsetLeft = currentLeft - to.left;
 			const parentOffsetLeft = (parent.transitions && parent.transitions.left ?  parent.transitions.left.value - parent.left : 0);
-			const currentParentLeft = parentLeft + offsetLeft - parentOffsetLeft;
+			const currentParentLeft = currentX + parentLeft + offsetLeft - parentOffsetLeft;
 			
 			const parentTop = to.top - parent.top + (staticParent ? parent.offsetTop : 0);
 			const offsetTop = currentTop - to.top;
 			const parentOffsetTop = (parent.transitions && parent.transitions.top ?  parent.transitions.top.value - parent.top : 0);
-			const currentParentTop = parentTop + offsetTop - parentOffsetTop;
+			const currentParentTop = currentY + parentTop + offsetTop - parentOffsetTop;
 			to.element.style.position = 'absolute';
       to.element.style.margin = 0;
       to.element.style.transform = 'translateX(' + currentParentLeft + 'px) translateY(' + currentParentTop + 'px)'
@@ -181,9 +247,11 @@ Snapshot.prototype.morph = function(snapshot, time) {
 		if (from && to.opacity !== currentOpacity) {
 			const currentOpacity = snapshot.transition(to.element, 'opacity', time, from, to)
       to.element.style.opacity = currentOpacity
+		} else {
+			to.element.style.opacity = to.opacity;
 		}
 	});
-	return snapshot.transitionCount
+	return snapshot.transitionCount > 0 || cascadeCount > 0
 }
 
 Snapshot.prototype.transition = function(element, property, time, from, to) {
@@ -226,13 +294,40 @@ Snapshot.prototype.render = function(snapshot, time) {
 	}
 }
 
+Snapshot.prototype.restore = function(snapshot) {
+	this.forEach((measurement) => {
+		if (!document.contains(measurement.element)) {
+			measurement.hidden = false;
+			measurement.restored = true;
+			snapshot.set(measurement.element, {
+				...measurement,
+				hidden: true
+			})
+			var els = measurement.element.getElementsByTagName('*')
+			for (var i = 0; i < els.length; i++) {
+				snapshot.set(els[i], {
+					...(this.get(els[i])),
+					hidden: false
+				})
+			}
+			document.body.appendChild(measurement.element);
+		}
+	})
+}
+
 Snapshot.prototype.mutate = function(callback) {
 	const snapshot = new Snapshot(this.element, true)
+	for (var property in this) {
+		if (this.hasOwnProperty(property) && typeof this[property] == 'function') {
+			snapshot[property] = this[property];
+		}
+	}
 	requestAnimationFrame((time) => {
 		this.reset();
 		callback()
 		snapshot.measure(snapshot.element)
-		snapshot.normalize(snapshot.element, this, snapshot.snapshot(snapshot.element.parentNode, {}));
+		this.restore(snapshot)
+		snapshot.normalize(snapshot.element, this, snapshot.snapshot(snapshot.element.parentNode, {}), time);
 		this.render(snapshot, time)
 	})
 	return snapshot;
@@ -241,12 +336,13 @@ Snapshot.prototype.mutate = function(callback) {
 Snapshot.prototype.getAppearanceStyles = function(to, from) {
 	return {
 		opacity: 0,
-		top: to.top + 100,
+		translateX: 100,
+		translateY: -100,
 	}
 }
 Snapshot.prototype.getDisappearanceStyles = function(to, from) {
 	return {
 		opacity: 0,
-		top: from.top - 100,
+		translateY: -100,
 	}
 }

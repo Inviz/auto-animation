@@ -45,8 +45,6 @@ Animation.prototype.update = function(time) {
     this.setValue(this.target)
     isFinished = true;
   } else {
-
-
     if (this.duration !== void 0) {
       /** Duration easing */
       value =

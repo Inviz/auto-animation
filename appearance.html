@@ -1,0 +1,92 @@
+<body>
+
+<style>
+body {
+	display: inline-block;
+	width: 100%;
+	margin: 0;
+}
+ * {
+ 	box-sizing: border-box;
+ }
+ .morphing {
+ 	outline: 2px dashed blue;
+ }
+ .el {
+ 	background: green;
+ 	overflow: hidden;
+ }
+ .test {
+ 	margin: 20px;
+ 	padding: 20px;
+ 	background: yellow;
+ }
+ #container {
+ 	min-height: 600px;
+ 	padding: 50px;
+ 	background: lightblue;
+ }
+
+ #root > * {
+ 	margin: 10px;
+ }
+ body > * {
+ 	margin: 10px;
+ }
+</style>
+
+<script src="transition.js"></script>
+<script src="snapshot.js"></script>
+
+<div class="el" id="el1">
+	<div class="test">
+		Static
+	</div>
+</div>
+<div class="el" id="el2">
+	<div class="test">
+		Static
+	</div>
+</div>
+<div class="el" id="el3">
+	<div class="test">
+		Static
+	</div>
+</div>
+<div class="el" id="el4">
+	<div class="test">
+		Static
+	</div>
+</div>
+
+<script>
+
+	var snapshot = new Snapshot(document.body);
+
+	snapshot.getAppearanceStyles = (to, from) => {
+		if (!to.element.classList.contains('test')) {
+			return {
+				opacity: 0,
+			}
+		}
+	}
+
+	snapshot.getDisappearanceStyles = (to, from) => {
+		if (!to.element.classList.contains('test')) {
+			return {
+				opacity: 0,
+			}
+		}
+	}
+
+	snapshot = snapshot.mutate(() => {
+		el1.parentNode.removeChild(el1)
+	})
+
+	setTimeout(() => {
+
+		snapshot = snapshot.mutate(() => {
+			el2.parentNode.removeChild(el2)
+		})
+	}, 300)
+</script>
