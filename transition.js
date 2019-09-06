@@ -64,7 +64,7 @@ Animation.prototype.update = function(time) {
       // If we lost a lot of frames just jump to the end.
       if (time > this.time + 64) this.time = time
       // http://gafferongames.com/game-physics/fix-your-timestep/
-      let numSteps = Math.floor(time - this.time);
+      let numSteps = Math.floor(time - this.time)
       if (this.delay) {
         const delayed = Math.min(this.delay, numSteps);
         this.delay -= delayed;

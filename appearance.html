@@ -2,8 +2,12 @@
 
 <style>
 body {
+	position: relative;
 	display: inline-block;
-	width: 100%;
+	overflow-x: hidden;
+}
+body, html {
+	padding: 0;
 	margin: 0;
 }
  * {
@@ -16,6 +20,9 @@ body {
  	background: green;
  	overflow: hidden;
  }
+ .el.static {
+ 	background: darkgrey;
+ }
  .test {
  	margin: 20px;
  	padding: 20px;
@@ -26,7 +33,10 @@ body {
  	padding: 50px;
  	background: lightblue;
  }
-
+ #parent1 {
+ 	background: teal;
+ 	padding: 10px
+ }
  #root > * {
  	margin: 10px;
  }
@@ -38,24 +48,51 @@ body {
 <script src="transition.js"></script>
 <script src="snapshot.js"></script>
 
-<div class="el" id="el1">
+<div class="el static" id="unmoved">
 	<div class="test">
 		Static
+	</div>
+</div>
+<div class="el" id="el1">
+	<div class="test">
+		Removed initially
 	</div>
 </div>
 <div class="el" id="el2">
 	<div class="test">
-		Static
+		Removed cascade
 	</div>
 </div>
-<div class="el" id="el3">
+<div class="el" id="el3" data-cascade-group="appearing">
 	<div class="test">
-		Static
+		Removed cascade
 	</div>
 </div>
-<div class="el" id="el4">
+<div class="el" id="el4" data-cascade-group="appearing">
 	<div class="test">
-		Static
+		Removed cascade
+	</div>
+</div>
+<div class="el" id="el5" data-cascade-group="appearing">
+	<div class="test">
+		Removed cascade
+	</div>
+</div>
+<div id="parent1">
+	<div class="el" id="el6" data-cascade-group="appearing">
+		<div class="test">
+			Removed cascade
+		</div>
+	</div>
+	<div class="el" id="el7" data-cascade-group="appearing">
+		<div class="test">
+			Removed cascade
+		</div>
+	</div>
+</div>
+<div class="el static" id="el8" data-cascade-group="appearing">
+	<div class="test">
+		Moved 
 	</div>
 </div>
 
@@ -64,7 +101,7 @@ body {
 	var snapshot = new Snapshot(document.body);
 
 	snapshot.getAppearanceStyles = (to, from) => {
-		if (!to.element.classList.contains('test')) {
+		if (!to.element.classList.contains('test') && to.element.id !== 'parent1') {
 			return {
 				opacity: 0,
 			}
@@ -72,9 +109,20 @@ body {
 	}
 
 	snapshot.getDisappearanceStyles = (to, from) => {
-		if (!to.element.classList.contains('test')) {
+		if (!to.element.classList.contains('test') && to.element.id !== 'parent1') {
 			return {
-				opacity: 0,
+				opacity: {
+					value: 0,
+					tension: 20,
+					friction: 5,
+				},
+				scale: {
+					value: .7,
+					delay: 300,
+				},
+				translateX: {
+					value: -50,
+				},
 			}
 		}
 	}
@@ -84,9 +132,9 @@ body {
 	})
 
 	setTimeout(() => {
-
 		snapshot = snapshot.mutate(() => {
-			el2.parentNode.removeChild(el2)
+			window.z = true
+			parent1.parentNode.removeChild(parent1)
 		})
-	}, 300)
+	}, 200)
 </script>

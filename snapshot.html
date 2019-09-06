@@ -1,14 +1,12 @@
 <body>
 
 <style>
-body {
-	display: inline-block;
-	width: 100%;
-	margin: 0;
-}
  * {
  	box-sizing: border-box;
  }
+ body {
+	overflow-x: hidden;
+	}
  .morphing {
  	outline: 2px dashed blue;
  }
@@ -190,6 +188,7 @@ snapshot = snapshot.mutate(() => {
 		})
 	}, 800)
 
+	var ids = 0;
 	setTimeout(() => {
 		snapshot = snapshot.mutate(() => {
 			var anchor = unmoved;
@@ -198,6 +197,7 @@ snapshot = snapshot.mutate(() => {
 				inserted.id = '';
 				inserted.classList.add('inserted')
 				inserted.style.cssText = '';
+				inserted.setAttribute('id', 'cascade-el-'+(++ids))
 				inserted.setAttribute('data-cascade-group', 'top-level-group')
 				inserted.firstElementChild.innerHTML = inserted.firstElementChild.innerHTML = 'Inserted ' + i + '  at once <br /><em>Cascades by 200 ms</em>'
 				anchor.parentNode.insertBefore(inserted, anchor.nextSibling)
@@ -205,26 +205,28 @@ snapshot = snapshot.mutate(() => {
 			}
 		})
 	}, 1500)
+	var ids = 0;
 	setTimeout(() => {
 		snapshot = snapshot.mutate(() => {
 			var anchor = unmoved;
-			for (var i = 0; i < 2; i++ ) {
+			for (var i = 0; i < 5; i++ ) {
 				const inserted = anchor.cloneNode(true);
 				inserted.id = '';
+				inserted.classList.add('inserted')
 				inserted.style.cssText = '';
-				inserted.style.background = 'lightgreen'
+				inserted.setAttribute('id', 'cascade-el-'+(++ids))
 				inserted.setAttribute('data-cascade-group', 'top-level-group')
-				inserted.firstElementChild.innerHTML = inserted.firstElementChild.innerHTML = 'Inserted ' + i + ' while cascading <br /><em>Cascades by 200 ms</em>'
+				inserted.firstElementChild.innerHTML = inserted.firstElementChild.innerHTML = 'Inserted ' + i + '  at once <br /><em>Cascades by 200 ms</em>'
 				anchor.parentNode.insertBefore(inserted, anchor.nextSibling)
 				anchor = inserted;
 			}
 		})
-	}, 2200)
+	}, 1800)
 	/*setTimeout(() => {
 		snapshot = snapshot.mutate(() => {
 			Array.prototype.forEach.call(document.querySelectorAll('.inserted'), (e) => e.parentNode.removeChild(e))
 		})
-	}, 1800)*/
+	}, 2200)*/
 })
 
 </script>
